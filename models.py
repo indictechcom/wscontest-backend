@@ -8,21 +8,30 @@ from sqlalchemy import (
     Integer,
     SmallInteger,
     String,
+    Table,
     create_engine,
 )
-from sqlalchemy.orm import sessionmaker, declarative_base, relationship
+from sqlalchemy.orm import declarative_base, relationship, sessionmaker
+
 from config import config, curr_env
 
 # Create the base class
-engine = create_engine(config['SQL_URI'])
+engine = create_engine(config["SQL_URI"])
 Session = sessionmaker(bind=engine)
 Base = declarative_base()
-DB_URL = "" if curr_env == 'production' else "localhost"
+DB_URL = "" if curr_env == "production" else "localhost"
+
+association_table = Table(
+    "association_table",
+    Base.metadata,
+    Column("contest_cid", ForeignKey("contest.cid")),
+    Column("contest_admin_user_name", ForeignKey("contest_admin.user_name")),
+)
 
 
 # Define the contests table
 class Contest(Base):
-    __tablename__ = "contests"
+    __tablename__ = "contest"
 
     cid = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(190), unique=True, nullable=False)
@@ -30,71 +39,92 @@ class Contest(Base):
     createdon = Column(DateTime, nullable=False, default=datetime.utcnow)
     start_date = Column(DateTime, nullable=False)
     end_date = Column(DateTime, nullable=False)
-    cstatus = Column(Boolean, default=None)
-    p_point = Column(SmallInteger, default=None)
-    v_point = Column(SmallInteger, default=None)
+    status = Column(Boolean, default=None)
+    point_per_proofread = Column(SmallInteger, default=None)
+    point_per_validate = Column(SmallInteger, default=None)
     lang = Column(String(3), default=None)
 
     # Relationships
-    admins = relationship("ContestAdmin", back_populates="contest")
+    admins = relationship(
+        "ContestAdmin", back_populates="contests", secondary=association_table
+    )
     books = relationship("ContestBook", back_populates="contest")
-    unlisted_users = relationship("UnlistedUser", back_populates="contest")
+    users = relationship("User", back_populates="contests")
 
 
 # Define the ContestAdmin table
 class ContestAdmin(Base):
-    __tablename__ = "ContestAdmin"
+    __tablename__ = "contest_admin"
 
-    cid = Column(Integer, ForeignKey("contests.cid"), primary_key=True)
     user_name = Column(String(190), primary_key=True, nullable=False)
+    cid = Column(Integer, ForeignKey("contest.cid"))
 
     # Relationships
-    contest = relationship("Contest", back_populates="admins")
+    contests = relationship(
+        "Contest", back_populates="admins", secondary=association_table
+    )
 
 
-# Define the IndexPages table
-class IndexPage(Base):
-    __tablename__ = "IndexPages"
-
-    idbp = Column(Integer, primary_key=True, autoincrement=True)
-    index_name = Column(String(200), nullable=False)
-    index_page = Column(String(100), nullable=False)
-    icode = Column(Integer, nullable=False)
-
-    # Relationships
-    books = relationship("ContestBook", back_populates="index_page")
-
-
-# Define the ContestBooks table
 class ContestBook(Base):
-    __tablename__ = "ContestBooks"
+    __tablename__ = "contest_book"
+
+    cid = Column(Integer, ForeignKey("contest.cid"))
+    contest = relationship("Contest", back_populates="books")
+    name = Column(String(190), nullable=False, primary_key=True)
+    index_pages = relationship("IndexPage", back_populates="contest_book")
+
+
+# Define the IndexPage table
+class IndexPage(Base):
+    __tablename__ = "index_page"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    cid = Column(Integer, ForeignKey("contests.cid"), nullable=False)
-    idbp = Column(Integer, ForeignKey("IndexPages.idbp"), nullable=False)
-    validator = Column(String(190), default=None)
-    proofreader = Column(String(190), default=None)
+    contest_book_name = Column(String(190), ForeignKey("contest_book.name"))
+    validator_username = Column(String(190), ForeignKey("user.user_name"))
+    proofreader_username = Column(String(190), ForeignKey("user.user_name"))
+
     validate_time = Column(DateTime, default=None)
     proofread_time = Column(DateTime, default=None)
     v_revision_id = Column(Integer, default=None)
     p_revision_id = Column(Integer, default=None)
 
     # Relationships
-    contest = relationship("Contest", back_populates="books")
-    index_page = relationship("IndexPage", back_populates="books")
+    contest_book = relationship(
+        "ContestBook", back_populates="index_pages", foreign_keys=[contest_book_name]
+    )
+    validator = relationship(
+        "User",
+        foreign_keys=[validator_username],
+        back_populates="validated_pages",
+    )
+    proofreader = relationship(
+        "User",
+        foreign_keys=[validator_username],
+        back_populates="proofread_pages",
+    )
 
 
-# Define the UnlistedUser table
-class UnlistedUser(Base):
-    __tablename__ = "UnlistedUser"
+# Define the User table
+class User(Base):
+    __tablename__ = "user"
 
-    cid = Column(Integer, ForeignKey("contests.cid"), primary_key=True)
-    user_name = Column(String(190), primary_key=True, nullable=False)   
+    user_name = Column(String(190), primary_key=True, nullable=False)
+    cid = Column(Integer, ForeignKey("contest.cid"))
 
     # Relationships
-    contest = relationship("Contest", back_populates="unlisted_users")
+    contests = relationship("Contest", back_populates="users")
+    proofread_pages = relationship(
+        "IndexPage",
+        back_populates="proofreader",
+        foreign_keys="[IndexPage.proofreader_username]",
+    )
+    validated_pages = relationship(
+        "IndexPage",
+        back_populates="validator",
+        foreign_keys="[IndexPage.validator_username]",
+        overlaps="proofreader",
+    )
 
 
-
-#create all tables
+# create all tables
 Base.metadata.create_all(engine)
