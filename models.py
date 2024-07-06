@@ -13,6 +13,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import sessionmaker, declarative_base, relationship
 from config import config, curr_env
 
+
 # Create the base class
 engine = create_engine(config['SQL_URI'])
 Session = sessionmaker(bind=engine)
