@@ -56,8 +56,7 @@ def login():
 
 @app.route("/logout")
 def logout():
-    flask_session["mwoauth_access_token"] = None
-    flask_session["mwoauth_username"] = None
+    flask_session.clear()
     if "next" in request.args:
         return redirect(request.args["next"])
     return jsonify("logged out !!")
