@@ -131,12 +131,16 @@ def contest_info():
     return jsonify("contest-info-here")
 
 
-@app.route("/contest/create", methods=["GET", "POST"])
+@app.route("/contest/create", methods=["POST"])
 def create_contest():
-    if request.method == "GET":
-        return json.dumps({})
+    if get_current_user() is None:
+        return (
+            json.dumps({"message": "Please login!"}),
+            403,
+            {"ContentType": "application/json"},
+        )
 
-    elif request.method == "POST" and get_current_user() is not None:
+    if request.method == "POST":
         try:
             req = request.form
             session = Session()
@@ -181,6 +185,30 @@ def create_contest():
                 404,
                 {"ContentType": "application/json"},
             )
+
+
+@app.route("/contests", methods=["GET"])
+def contests():
+    session = Session()
+    contests = (
+        session.query(Contest)
+        .with_entities(
+            Contest.name, Contest.start_date, Contest.end_date, Contest.status
+        )
+        .all()
+    )
+    print(contests)
+    return json.dumps(
+        [
+            {
+                "name": name,
+                "start_date": start_date.strftime("%m-%d-%Y"),
+                "end_date": end_date.strftime("%d-%m-%Y"),
+                "status": status,
+            }
+            for name, start_date, end_date, status in contests
+        ]
+    )
 
 
 if __name__ == "__main__":

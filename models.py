@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from datetime import datetime
 
 from sqlalchemy import (
@@ -15,7 +16,6 @@ from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
 from config import config, curr_env
 
-
 # Create the base class
 engine = create_engine(config["SQL_URI"])
 Session = sessionmaker(bind=engine)
@@ -31,19 +31,20 @@ association_table = Table(
 
 
 # Define the contests table
+@dataclass
 class Contest(Base):
     __tablename__ = "contest"
 
     cid = Column(Integer, primary_key=True, autoincrement=True)
-    name = Column(String(190), unique=True, nullable=False)
-    created_by = Column(String(100), default=None)
-    createdon = Column(DateTime, nullable=False, default=datetime.utcnow)
-    start_date = Column(DateTime, nullable=False)
-    end_date = Column(DateTime, nullable=False)
-    status = Column(Boolean, default=None)
-    point_per_proofread = Column(SmallInteger, default=None)
-    point_per_validate = Column(SmallInteger, default=None)
-    lang = Column(String(3), default=None)
+    name: str = Column(String(190), unique=True, nullable=False)
+    created_by: str = Column(String(100), default=None)
+    createdon: datetime = Column(DateTime, nullable=False, default=datetime.utcnow)
+    start_date: datetime = Column(DateTime, nullable=False)
+    end_date: datetime = Column(DateTime, nullable=False)
+    status: bool = Column(Boolean, default=None)
+    point_per_proofread: int = Column(SmallInteger, default=None)
+    point_per_validate: int = Column(SmallInteger, default=None)
+    lang: str = Column(String(3), default=None)
 
     # Relationships
     admins = relationship(
@@ -101,6 +102,7 @@ class IndexPage(Base):
     proofreader = relationship(
         "User",
         foreign_keys=[validator_username],
+        overlaps="validator",
         back_populates="proofread_pages",
     )
 
