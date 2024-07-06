@@ -50,7 +50,7 @@ class Contest(Base):
     admins = relationship(
         "ContestAdmin", back_populates="contests", secondary=association_table
     )
-    books = relationship("ContestBook", back_populates="contest")
+    books = relationship("Book", back_populates="contest")
     users = relationship("User", back_populates="contests")
 
 
@@ -67,21 +67,23 @@ class ContestAdmin(Base):
     )
 
 
-class ContestBook(Base):
-    __tablename__ = "contest_book"
+class Book(Base):
+    __tablename__ = "book"
 
     cid = Column(Integer, ForeignKey("contest.cid"))
     contest = relationship("Contest", back_populates="books")
     name = Column(String(190), nullable=False, primary_key=True)
-    index_pages = relationship("IndexPage", back_populates="contest_book")
+    index_pages = relationship("IndexPage", back_populates="book")
 
 
 # Define the IndexPage table
+@dataclass
 class IndexPage(Base):
     __tablename__ = "index_page"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    contest_book_name = Column(String(190), ForeignKey("contest_book.name"))
+    page_name: str = Column(String(190), nullable=False)
+    book_name = Column(String(190), ForeignKey("book.name"))
     validator_username = Column(String(190), ForeignKey("user.user_name"))
     proofreader_username = Column(String(190), ForeignKey("user.user_name"))
 
@@ -91,9 +93,7 @@ class IndexPage(Base):
     p_revision_id = Column(Integer, default=None)
 
     # Relationships
-    contest_book = relationship(
-        "ContestBook", back_populates="index_pages", foreign_keys=[contest_book_name]
-    )
+    book = relationship("Book", back_populates="index_pages", foreign_keys=[book_name])
     validator = relationship(
         "User",
         foreign_keys=[validator_username],
