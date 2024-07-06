@@ -1,4 +1,7 @@
-from flask import Flask, jsonify, CORS
+from flask import Flask, jsonify
+from flask_cors import CORS
+from models import Contest, ContestAdmin, ContestBook, IndexPage, UnlistedUser, Session
+
 
 app = Flask(__name__)
 app.secret_key = "b'C\x01\xe3j\xdcq\xe9\xa3&\x0b\x91\x82'"
@@ -13,7 +16,7 @@ def index():
 
 #route for graph data for specific contest
 @app.route("/graph-data", methods=['GET'])
-def graph-data():
+def graph_data():
     return jsonify("graph data here")   
 
 #route for contest info
@@ -21,7 +24,5 @@ def graph-data():
 def contest_info(): 
     return jsonify("contest-info-here")
 
-
-@app.route("")
 if __name__ == "__main__":
     app.run()

@@ -10,11 +10,14 @@ from sqlalchemy import (
     String,
     create_engine,
 )
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import sessionmaker, declarative_base, relationship
+from config import config, curr_env
 
 # Create the base class
+engine = create_engine(config['SQL_URI'])
+Session = sessionmaker(bind=engine)
 Base = declarative_base()
+DB_URL = "" if curr_env == 'production' else "localhost"
 
 
 # Define the contests table
@@ -54,8 +57,8 @@ class IndexPage(Base):
     __tablename__ = "IndexPages"
 
     idbp = Column(Integer, primary_key=True, autoincrement=True)
-    index_name = Column(String(200, collation="utf8mb3_bin"), nullable=False)
-    index_page = Column(String(100, collation="utf8mb3_bin"), nullable=False)
+    index_name = Column(String(200), nullable=False)
+    index_page = Column(String(100), nullable=False)
     icode = Column(Integer, nullable=False)
 
     # Relationships
@@ -86,12 +89,12 @@ class UnlistedUser(Base):
     __tablename__ = "UnlistedUser"
 
     cid = Column(Integer, ForeignKey("contests.cid"), primary_key=True)
-    user_name = Column(String(190), primary_key=True, nullable=False)
+    user_name = Column(String(190), primary_key=True, nullable=False)   
 
     # Relationships
     contest = relationship("Contest", back_populates="unlisted_users")
 
 
-# Create an engine and a session
-engine = create_engine("mariadb+pymysql://hrideshmg:robot123@127.0.0.1:3306/wscontest")
+
+#create all tables
 Base.metadata.create_all(engine)
