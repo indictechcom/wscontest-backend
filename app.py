@@ -58,14 +58,13 @@ def logout():
     flask_session.clear()
     if "next" in request.args:
         return redirect(request.args["next"])
-    return jsonify("logged out !!")
+    return jsonify({"status": "logged out"})
 
 
 @app.route("/oauth-callback")
 def oauth_callback():
     request_token_key = request.args.get("oauth_token", "None")
     keyed_token_name = _str(request_token_key) + "_request_token"
-    keyed_next_name = _str(request_token_key) + "_next"
 
     if keyed_token_name not in flask_session:
         err_msg = "OAuth callback failed. Can't find keyed token. Are cookies disabled?"
@@ -77,14 +76,15 @@ def oauth_callback():
     flask_session["mwoauth_access_token"] = dict(
         zip(access_token._fields, access_token)
     )
+    flask_session.modified = True
+    print(access_token)
 
-    next_url = url_for(flask_session[keyed_next_name])
-    del flask_session[keyed_next_name]
+    # del flask_session[keyed_next_name]
     del flask_session[keyed_token_name]
 
     get_current_user(False)
 
-    return redirect(next_url)
+    return redirect("http://localhost:5173/Contest")
 
 
 @app.before_request
@@ -108,7 +108,7 @@ def get_current_user(cached=True):
     # Store user info in flask_session
     flask_session["mwoauth_username"] = identity["username"]
     flask_session["mwoauth_useremail"] = identity["email"]
-
+    print(flask_session["mwoauth_username"])
     return flask_session["mwoauth_username"]
 
 
@@ -120,7 +120,7 @@ def graph_data():
 
 @app.route("/contest/create", methods=["POST"])
 def create_contest():
-    if get_current_user() is None:
+    if get_current_user(False) is None:
         return (
             jsonify("Please login!"),
             403,
