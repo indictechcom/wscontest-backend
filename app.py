@@ -112,22 +112,10 @@ def get_current_user(cached=True):
     return flask_session["mwoauth_username"]
 
 
-# route for the contest list view
-@app.route("/contest-list", methods=["GET"])
-def index():
-    return jsonify("contest-list-here")
-
-
 # route for graph data for specific contest
 @app.route("/graph-data", methods=["GET"])
 def graph_data():
     return jsonify("graph data here")
-
-
-# route for contest info
-@app.route("/contest-info")
-def contest_info():
-    return jsonify("contest-info-here")
 
 
 @app.route("/contest/create", methods=["POST"])
