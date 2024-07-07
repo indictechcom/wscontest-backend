@@ -11,10 +11,10 @@ from models import Book, Contest, ContestAdmin, IndexPage, Session, User
 
 app = Flask(__name__)
 app.secret_key = "b'C\x01\xe3j\xdcq\xe9\xa3&\x0b\x91\x82'"
-CORS(app, resources={r"/*": {"origins": "*"}})
+CORS(app, origins="*", supports_credentials=True)
 
 
-consumer_token = mwoauth.ConsumerToken(
+consumer_token = mwoauth.ConsumerToken(     
     config["CONSUMER_KEY"], config["CONSUMER_SECRET"]
 )
 
@@ -61,6 +61,7 @@ def logout():
     return jsonify({"status": "logged out"})
 
 
+
 @app.route("/oauth-callback")
 def oauth_callback():
     request_token_key = request.args.get("oauth_token", "None")
@@ -76,14 +77,14 @@ def oauth_callback():
     flask_session["mwoauth_access_token"] = dict(
         zip(access_token._fields, access_token)
     )
-    flask_session.modified = True
+    flask_session.modified = True  # Ensure the session is marked as modified
     print(access_token)
 
-    # del flask_session[keyed_next_name]
+    # Clean up the temporary request token
     del flask_session[keyed_token_name]
 
+    # Load the current user to populate session data
     get_current_user(False)
-
     return redirect("http://localhost:5173/Contest")
 
 
