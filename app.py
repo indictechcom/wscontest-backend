@@ -10,7 +10,7 @@ from config import config
 from models import Book, Contest, ContestAdmin, IndexPage, Session, User
 
 app = Flask(__name__)
-app.secret_key = "b'C\x01\xe3j\xdcq\xe9\xa3&\x0b\x91\x82'"
+app.secret_key = config["APP_SECRET_KEY"]
 CORS(app, origins="*", supports_credentials=True)
 
 
