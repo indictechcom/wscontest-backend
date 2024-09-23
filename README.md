@@ -2,7 +2,7 @@
 
 **Contibutors** : 
 
-- <a href="https://github.com/Jayprakash-SE/">Jayprakash</a> [creator of the previous tool :<a href= "https://github.com/RihaanBH-1810/attendance_tracker/tree/attendance-tracker-backend"> Github repo Link </a> ] 
+- <a href="https://github.com/Jayprakash-SE/">Jayprakash</a> [creator of the previous tool :<a href= "https://github.com/indictechcom/indic-wsstats"> Github repo Link </a> ] 
 - <a href="https://github.com/RihaanBH-1810">Rihaan B H</a> 
 - <a href="https://github.com/HrideshMG">Hridesh M G</a> 
 
