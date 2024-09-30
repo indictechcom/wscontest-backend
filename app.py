@@ -11,6 +11,7 @@ from models import Book, Contest, ContestAdmin, IndexPage, Session, User
 
 app = Flask(__name__)
 app.secret_key = config["APP_SECRET_KEY"]
+
 CORS(app, origins="*", supports_credentials=True)
 
 
@@ -62,7 +63,7 @@ def logout():
 
 
 
-@app.route("/oauth-callback")
+@app.route("/oauth-k")
 def oauth_callback():
     request_token_key = request.args.get("oauth_token", "None")
     keyed_token_name = _str(request_token_key) + "_request_token"
