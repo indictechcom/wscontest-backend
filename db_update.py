@@ -7,7 +7,6 @@ from dateutil import parser
 def run():
     session = Session()
 
-    # Fetch active contests from the database
     contests = session.query(Contest).all()
     user_agent = "IndicWikisourceContest/1.1 (Development; https://example.org/IndicWikisourceContest/;) pywikisource/0.0.5"
 
@@ -20,7 +19,6 @@ def run():
         elif contest.status == True:
             ws = WikiSourceApi(contest.lang, user_agent)
 
-            # Fetch contest books related to the contest
             books = session.query(Book).filter_by(cid=contest.cid).all()
 
             for book in books:
@@ -61,7 +59,6 @@ def run():
         
     session.commit()
 
-    # Close the session
     session.close()
 
 if __name__ == "__main__":

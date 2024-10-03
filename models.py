@@ -16,7 +16,6 @@ from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
 from config import config, curr_env
 
-# Create the base class
 engine = create_engine(config["SQL_URI"])
 Session = sessionmaker(bind=engine)
 Base = declarative_base()
@@ -30,7 +29,6 @@ association_table = Table(
 )
 
 
-# Define the contests table
 @dataclass
 class Contest(Base):
     __tablename__ = "contest"
@@ -46,7 +44,6 @@ class Contest(Base):
     point_per_validate: int = Column(SmallInteger, default=None)
     lang: str = Column(String(3), default=None)
 
-    # Relationships
     admins = relationship(
         "ContestAdmin", back_populates="contests", secondary=association_table
     )
@@ -54,14 +51,12 @@ class Contest(Base):
     users = relationship("User", back_populates="contests")
 
 
-# Define the ContestAdmin table
 class ContestAdmin(Base):
     __tablename__ = "contest_admin"
 
     user_name = Column(String(190), primary_key=True, nullable=False)
     cid = Column(Integer, ForeignKey("contest.cid"))
 
-    # Relationships
     contests = relationship(
         "Contest", back_populates="admins", secondary=association_table
     )
@@ -76,7 +71,6 @@ class Book(Base):
     index_pages = relationship("IndexPage", back_populates="book")
 
 
-# Define the IndexPage table
 @dataclass
 class IndexPage(Base):
     __tablename__ = "index_page"
@@ -92,7 +86,6 @@ class IndexPage(Base):
     v_revision_id = Column(Integer, default=None)
     p_revision_id = Column(Integer, default=None)
 
-    # Relationships
     book = relationship("Book", back_populates="index_pages", foreign_keys=[book_name])
     validator = relationship(
         "User",
@@ -107,14 +100,12 @@ class IndexPage(Base):
     )
 
 
-# Define the User table
 class User(Base):
     __tablename__ = "user"
 
     user_name = Column(String(190), primary_key=True, nullable=False)
     cid = Column(Integer, ForeignKey("contest.cid"))
 
-    # Relationships
     contests = relationship("Contest", back_populates="users")
     proofread_pages = relationship(
         "IndexPage",
@@ -129,5 +120,4 @@ class User(Base):
     )
 
 
-# create all tables
 Base.metadata.create_all(engine)

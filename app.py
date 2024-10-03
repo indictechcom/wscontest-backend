@@ -78,13 +78,10 @@ def oauth_callback():
     flask_session["mwoauth_access_token"] = dict(
         zip(access_token._fields, access_token)
     )
-    flask_session.modified = True  # Ensure the session is marked as modified
-    print(access_token)
+    flask_session.modified = True  
 
-    # Clean up the temporary request token
     del flask_session[keyed_token_name]
 
-    # Load the current user to populate session data
     get_current_user(False)
     return redirect("http://localhost:5173/Contest")
 
@@ -102,19 +99,17 @@ def get_current_user(cached=True):
     if cached:
         return flask_session.get("mwoauth_username")
 
-    # Get user info
+    print(flask_session)
     identity = handshaker.identify(
         mwoauth.AccessToken(**flask_session["mwoauth_access_token"])
     )
-
-    # Store user info in flask_session
+    
     flask_session["mwoauth_username"] = identity["username"]
     flask_session["mwoauth_useremail"] = identity["email"]
     print(flask_session["mwoauth_username"])
     return flask_session["mwoauth_username"]
 
 
-# route for graph data for specific contest
 @app.route("/graph-data", methods=["GET"])
 def graph_data():
     return jsonify("graph data here")
@@ -154,7 +149,6 @@ def create_contest():
                 admin = (
                     session.query(ContestAdmin).filter_by(user_name=admin_name).first()
                 )
-                # If admin is already in database, just add a new contest to his list
                 if admin:
                     admin.contests.append(contest)
                 else:
@@ -220,7 +214,6 @@ def contest_by_id(id):
                         "validated_count": validated_count,
                         "points": points,
                         "pages": session.query(IndexPage)
-                        # Finds pages which the user has contributed to
                         .filter(
                             (IndexPage.validator_username == user.user_name)
                             | (IndexPage.proofreader_username == user.user_name)
