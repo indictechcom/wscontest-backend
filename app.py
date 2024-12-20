@@ -1,7 +1,8 @@
 from datetime import date
+from typing import Dict, List, Optional, Tuple, Union
 
 import mwoauth
-from flask import Flask, jsonify, redirect, request
+from flask import Flask, Response, jsonify, redirect, request
 from flask import session as flask_session
 from flask import url_for
 from flask_cors import CORS
@@ -15,14 +16,14 @@ app.secret_key = config["APP_SECRET_KEY"]
 CORS(app, origins="*", supports_credentials=True)
 
 
-consumer_token = mwoauth.ConsumerToken(     
+consumer_token: mwoauth.ConsumerToken = mwoauth.ConsumerToken(     
     config["CONSUMER_KEY"], config["CONSUMER_SECRET"]
 )
 
-handshaker = mwoauth.Handshaker(config["OAUTH_MWURI"], consumer_token)
+handshaker: mwoauth.Handshaker = mwoauth.Handshaker(config["OAUTH_MWURI"], consumer_token)
 
 
-def _str(val):
+def _str(val: Union[str, bytes]) -> str:
     """
     Ensures that the val is the default str() type for python2 or 3
     """
@@ -39,8 +40,7 @@ def _str(val):
 
 
 @app.route("/login")
-def login():
-
+def login() -> Response:
     redirect_to, request_token = handshaker.initiate()
     keyed_token_name = _str(request_token.key) + "_request_token"
     keyed_next_name = _str(request_token.key) + "_next"
@@ -55,16 +55,15 @@ def login():
 
 
 @app.route("/logout")
-def logout():
+def logout() -> Union[Response, Tuple[Response, int]]:
     flask_session.clear()
     if "next" in request.args:
         return redirect(request.args["next"])
     return jsonify({"status": "logged out"})
 
 
-
 @app.route("/oauth-k")
-def oauth_callback():
+def oauth_callback() -> Union[Response, str]:
     request_token_key = request.args.get("oauth_token", "None")
     keyed_token_name = _str(request_token_key) + "_request_token"
 
@@ -87,15 +86,16 @@ def oauth_callback():
 
 
 @app.before_request
-def force_https():
+def force_https() -> Optional[Response]:
     if request.headers.get("X-Forwarded-Proto") == "http":
         return redirect(
             "https://" + request.headers["Host"] + request.headers["X-Original-URI"],
             code=301,
         )
+    return None
 
 
-def get_current_user(cached=True):
+def get_current_user(cached: bool = True) -> Optional[str]:
     if cached:
         return flask_session.get("mwoauth_username")
 
@@ -111,12 +111,12 @@ def get_current_user(cached=True):
 
 
 @app.route("/graph-data", methods=["GET"])
-def graph_data():
+def graph_data() -> Response:
     return jsonify("graph data here")
 
 
 @app.route("/contest/create", methods=["POST"])
-def create_contest():
+def create_contest() -> Tuple[Response, int]:
     if get_current_user(False) is None:
         return (
             jsonify("Please login!"),
@@ -162,7 +162,7 @@ def create_contest():
 
 
 @app.route("/contests", methods=["GET"])
-def contest_list():
+def contest_list() -> Tuple[Response, int]:
     session = Session()
     contests = (
         session.query(Contest)
@@ -189,13 +189,13 @@ def contest_list():
 
 
 @app.route("/contest/<int:id>")
-def contest_by_id(id):
+def contest_by_id(id: int) -> Tuple[Response, int]:
     session = Session()
     contest = session.get(Contest, id)
     if not contest:
         return jsonify("Contest with this id does not exist!"), 404
     else:
-        data = {}
+        data: Dict = {}
         data["contest_details"] = contest
         data["adminstrators"] = [admin.user_name for admin in contest.admins]
         data["books"] = [book.name for book in contest.books]
