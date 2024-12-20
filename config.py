@@ -1,5 +1,5 @@
 import os
-from typing import Dict, Optional
+from typing import Optional
 
 from dotenv import load_dotenv
 

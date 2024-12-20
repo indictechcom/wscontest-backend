@@ -1,10 +1,9 @@
 from datetime import date
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, Optional, Tuple, Union
 
 import mwoauth
 from flask import Flask, Response, jsonify, redirect, request
 from flask import session as flask_session
-from flask import url_for
 from flask_cors import CORS
 
 from config import config

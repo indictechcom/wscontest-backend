@@ -1,9 +1,7 @@
 from typing import Dict, List, Optional
 
 from pywikisource import WikiSourceApi
-import json
 import datetime as dt
-from pytz import timezone
 from models import Contest, Book, IndexPage, Session, User
 from dateutil import parser
 
