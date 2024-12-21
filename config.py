@@ -12,6 +12,7 @@ DB_NAME = os.getenv("DB_NAME")
 TIMEZONE = os.getenv("TIMEZONE")
 CONSUMER_KEY = os.getenv("CONSUMER_KEY")
 CONSUMER_SECRET = os.getenv("CONSUMER_SECRET")
+APP_NAME = os.getenv("CONSUMER_APP_NAME")
 OAUTH_MWURI = (
     "https://meta.wikimedia.org/w/"
     if curr_env == "production"
@@ -24,6 +25,6 @@ config = {
     "CONSUMER_KEY": CONSUMER_KEY,
     "CONSUMER_SECRET": CONSUMER_SECRET,
     "OAUTH_MWURI": OAUTH_MWURI,
-    "APP_SECRET_KEY" : APP_SECRET_KEY
+    "APP_SECRET_KEY" : APP_SECRET_KEY,
+    "APP_NAME" : APP_NAME
 }
-

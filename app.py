@@ -16,7 +16,7 @@ CORS(app, origins="*", supports_credentials=True)
 
 oauth = OAuth(app)
 oauth.register(
-    name="ws test 5",
+    name=config["APP_NAME"],
     client_id=config["CONSUMER_KEY"],
     client_secret=config["CONSUMER_SECRET"],
     access_token_url="https://commons.wikimedia.org/w/rest.php/oauth2/access_token",
@@ -47,8 +47,8 @@ def _str(val):
 
 @app.route("/login")
 def login():
-    return ws_contest.authorize_redirect()
-
+    return ws_contest.authorize_redirect() 
+    
 
 @app.route("/logout")
 def logout():
@@ -61,14 +61,13 @@ def logout():
 @app.route("/oauth-k")
 def authorize():
     token = ws_contest.authorize_access_token()
-    print(token)
     if token:
         resp = ws_contest.get("/w/rest.php/oauth2/resource/profile", token=token)
         resp.raise_for_status()
         profile = resp.json()
         print(profile)
         flask_session['profile'] = profile
-    return redirect("http://localhost:5173")
+    return redirect("http://localhost:5173/contest")
 
 
 @app.before_request
@@ -82,17 +81,7 @@ def force_https():
 
 def get_current_user(cached=True):
     if cached:
-        return flask_session.get("mwoauth_username")
-
-    print(flask_session)
-    identity = handshaker.identify(
-        mwoauth.AccessToken(**flask_session["mwoauth_access_token"])
-    )
-    
-    flask_session["mwoauth_username"] = identity["username"]
-    flask_session["mwoauth_useremail"] = identity["email"]
-    print(flask_session["mwoauth_username"])
-    return flask_session["mwoauth_username"]
+        print(flask_session)
 
 
 @app.route("/graph-data", methods=["GET"])
@@ -102,11 +91,7 @@ def graph_data():
 
 @app.route("/contest/create", methods=["POST"])
 def create_contest():
-    if get_current_user(False) is None:
-        return (
-            jsonify("Please login!"),
-            403,
-        )
+    get_current_user(True)
 
     if request.method == "POST":
         try:
