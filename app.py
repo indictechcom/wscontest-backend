@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Dict, Optional, Tuple, Union
 
-import mwoauth
+from authlib.integrations.flask_client import OAuth
 from flask import Flask, Response, jsonify, redirect, request
 from flask import session as flask_session
 from flask_cors import CORS
@@ -20,6 +20,20 @@ consumer_token: mwoauth.ConsumerToken = mwoauth.ConsumerToken(
 )
 
 handshaker: mwoauth.Handshaker = mwoauth.Handshaker(config["OAUTH_MWURI"], consumer_token)
+oauth = OAuth(app)
+oauth.register(
+    name=config["APP_NAME"],
+    client_id=config["CONSUMER_KEY"],
+    client_secret=config["CONSUMER_SECRET"],
+    access_token_url="https://commons.wikimedia.org/w/rest.php/oauth2/access_token",
+    authorize_url="https://commons.wikimedia.org/w/rest.php/oauth2/authorize",
+    api_base_url="https://commons.wikimedia.org/w",
+    client_kwargs={},
+)
+
+
+
+ws_contest = oauth.create_client("ws test 5")
 
 
 def _str(val: Union[str, bytes]) -> str:
@@ -37,23 +51,12 @@ def _str(val: Union[str, bytes]) -> str:
         else:
             return str(val, "ascii")
 
-
-@app.route("/login")
+@app.route("/api/login")
 def login() -> Response:
-    redirect_to, request_token = handshaker.initiate()
-    keyed_token_name = _str(request_token.key) + "_request_token"
-    keyed_next_name = _str(request_token.key) + "_next"
-    flask_session[keyed_token_name] = dict(zip(request_token._fields, request_token))
+    return ws_contest.authorize_redirect() 
+    
 
-    if "next" in request.args:
-        flask_session[keyed_next_name] = request.args.get("next")
-    else:
-        flask_session[keyed_next_name] = "index"
-
-    return redirect(redirect_to)
-
-
-@app.route("/logout")
+@app.route("/api/logout")
 def logout() -> Union[Response, Tuple[Response, int]]:
     flask_session.clear()
     if "next" in request.args:
@@ -62,26 +65,15 @@ def logout() -> Union[Response, Tuple[Response, int]]:
 
 
 @app.route("/oauth-k")
-def oauth_callback() -> Union[Response, str]:
-    request_token_key = request.args.get("oauth_token", "None")
-    keyed_token_name = _str(request_token_key) + "_request_token"
-
-    if keyed_token_name not in flask_session:
-        err_msg = "OAuth callback failed. Can't find keyed token. Are cookies disabled?"
-        return jsonify(f"error {err_msg}")
-
-    access_token = handshaker.complete(
-        mwoauth.RequestToken(**flask_session[keyed_token_name]), request.query_string
-    )
-    flask_session["mwoauth_access_token"] = dict(
-        zip(access_token._fields, access_token)
-    )
-    flask_session.modified = True  
-
-    del flask_session[keyed_token_name]
-
-    get_current_user(False)
-    return redirect("http://localhost:5173/Contest")
+def authorize():
+    token = ws_contest.authorize_access_token()
+    if token:
+        resp = ws_contest.get("/w/rest.php/oauth2/resource/profile", token=token)
+        resp.raise_for_status()
+        profile = resp.json()
+        print(profile)
+        flask_session['profile'] = profile
+    return redirect("http://localhost:5173/contest")
 
 
 @app.before_request
@@ -96,24 +88,17 @@ def force_https() -> Optional[Response]:
 
 def get_current_user(cached: bool = True) -> Optional[str]:
     if cached:
-        return flask_session.get("mwoauth_username")
-
-    print(flask_session)
-    identity = handshaker.identify(
-        mwoauth.AccessToken(**flask_session["mwoauth_access_token"])
-    )
-    
-    flask_session["mwoauth_username"] = identity["username"]
-    flask_session["mwoauth_useremail"] = identity["email"]
-    print(flask_session["mwoauth_username"])
-    return flask_session["mwoauth_username"]
+        print(flask_session)
 
 
-@app.route("/graph-data", methods=["GET"])
-def graph_data() -> Response:
+@app.route("/api/graph-data", methods=["GET"])
+def graph_data():
     return jsonify("graph data here")
 
 
+@app.route("/api/contest/create", methods=["POST"])
+def create_contest():
+    get_current_user(True)
 @app.route("/contest/create", methods=["POST"])
 def create_contest() -> Tuple[Response, int]:
     if get_current_user(False) is None:
@@ -160,7 +145,7 @@ def create_contest() -> Tuple[Response, int]:
             return jsonify({"success": False, "message": str(e)}), 404
 
 
-@app.route("/contests", methods=["GET"])
+@app.route("/api/contests", methods=["GET"])
 def contest_list() -> Tuple[Response, int]:
     session = Session()
     contests = (
@@ -187,7 +172,7 @@ def contest_list() -> Tuple[Response, int]:
     )
 
 
-@app.route("/contest/<int:id>")
+@app.route("/api/contest/<int:id>")
 def contest_by_id(id: int) -> Tuple[Response, int]:
     session = Session()
     contest = session.get(Contest, id)
