@@ -34,7 +34,7 @@ class Contest(Base):
     __tablename__ = "contest"
 
     cid = Column(Integer, primary_key=True, autoincrement=True)
-    name: str = Column(String(190), unique=True, nullable=False)
+    name: str = Column(String(190), nullable=False)
     created_by: str = Column(String(100), default=None)
     createdon: datetime = Column(DateTime, nullable=False, default=datetime.utcnow)
     start_date: datetime = Column(DateTime, nullable=False)

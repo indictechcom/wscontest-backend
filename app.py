@@ -45,12 +45,12 @@ def _str(val):
         else:
             return str(val, "ascii")
 
-@app.route("/login")
+@app.route("/api/login")
 def login():
     return ws_contest.authorize_redirect() 
     
 
-@app.route("/logout")
+@app.route("/api/logout")
 def logout():
     flask_session.clear()
     if "next" in request.args:
@@ -84,12 +84,12 @@ def get_current_user(cached=True):
         print(flask_session)
 
 
-@app.route("/graph-data", methods=["GET"])
+@app.route("/api/graph-data", methods=["GET"])
 def graph_data():
     return jsonify("graph data here")
 
 
-@app.route("/contest/create", methods=["POST"])
+@app.route("/api/contest/create", methods=["POST"])
 def create_contest():
     get_current_user(True)
 
@@ -131,7 +131,7 @@ def create_contest():
             return jsonify({"success": False, "message": str(e)}), 404
 
 
-@app.route("/contests", methods=["GET"])
+@app.route("/api/contests", methods=["GET"])
 def contest_list():
     session = Session()
     contests = (
@@ -158,7 +158,7 @@ def contest_list():
     )
 
 
-@app.route("/contest/<int:id>")
+@app.route("/qpi/contest/<int:id>")
 def contest_by_id(id):
     session = Session()
     contest = session.get(Contest, id)
