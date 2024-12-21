@@ -15,11 +15,6 @@ app.secret_key = config["APP_SECRET_KEY"]
 CORS(app, origins="*", supports_credentials=True)
 
 
-consumer_token: mwoauth.ConsumerToken = mwoauth.ConsumerToken(     
-    config["CONSUMER_KEY"], config["CONSUMER_SECRET"]
-)
-
-handshaker: mwoauth.Handshaker = mwoauth.Handshaker(config["OAUTH_MWURI"], consumer_token)
 oauth = OAuth(app)
 oauth.register(
     name=config["APP_NAME"],
