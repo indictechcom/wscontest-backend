@@ -1,6 +1,6 @@
 from datetime import date
 
-import mwoauth
+from authlib.integrations.flask_client import OAuth
 from flask import Flask, jsonify, redirect, request
 from flask import session as flask_session
 from flask import url_for
@@ -14,12 +14,20 @@ app.secret_key = config["APP_SECRET_KEY"]
 
 CORS(app, origins="*", supports_credentials=True)
 
-
-consumer_token = mwoauth.ConsumerToken(     
-    config["CONSUMER_KEY"], config["CONSUMER_SECRET"]
+oauth = OAuth(app)
+oauth.register(
+    name="ws test 5",
+    client_id=config["CONSUMER_KEY"],
+    client_secret=config["CONSUMER_SECRET"],
+    access_token_url="https://commons.wikimedia.org/w/rest.php/oauth2/access_token",
+    authorize_url="https://commons.wikimedia.org/w/rest.php/oauth2/authorize",
+    api_base_url="https://commons.wikimedia.org/w",
+    client_kwargs={},
 )
 
-handshaker = mwoauth.Handshaker(config["OAUTH_MWURI"], consumer_token)
+
+
+ws_contest = oauth.create_client("ws test 5")
 
 
 def _str(val):
@@ -37,21 +45,9 @@ def _str(val):
         else:
             return str(val, "ascii")
 
-
 @app.route("/login")
 def login():
-
-    redirect_to, request_token = handshaker.initiate()
-    keyed_token_name = _str(request_token.key) + "_request_token"
-    keyed_next_name = _str(request_token.key) + "_next"
-    flask_session[keyed_token_name] = dict(zip(request_token._fields, request_token))
-
-    if "next" in request.args:
-        flask_session[keyed_next_name] = request.args.get("next")
-    else:
-        flask_session[keyed_next_name] = "index"
-
-    return redirect(redirect_to)
+    return ws_contest.authorize_redirect()
 
 
 @app.route("/logout")
@@ -62,28 +58,17 @@ def logout():
     return jsonify({"status": "logged out"})
 
 
-
 @app.route("/oauth-k")
-def oauth_callback():
-    request_token_key = request.args.get("oauth_token", "None")
-    keyed_token_name = _str(request_token_key) + "_request_token"
-
-    if keyed_token_name not in flask_session:
-        err_msg = "OAuth callback failed. Can't find keyed token. Are cookies disabled?"
-        return jsonify(f"error {err_msg}")
-
-    access_token = handshaker.complete(
-        mwoauth.RequestToken(**flask_session[keyed_token_name]), request.query_string
-    )
-    flask_session["mwoauth_access_token"] = dict(
-        zip(access_token._fields, access_token)
-    )
-    flask_session.modified = True  
-
-    del flask_session[keyed_token_name]
-
-    get_current_user(False)
-    return redirect("http://localhost:5173/Contest")
+def authorize():
+    token = ws_contest.authorize_access_token()
+    print(token)
+    if token:
+        resp = ws_contest.get("/w/rest.php/oauth2/resource/profile", token=token)
+        resp.raise_for_status()
+        profile = resp.json()
+        print(profile)
+        flask_session['profile'] = profile
+    return redirect("http://localhost:5173")
 
 
 @app.before_request
