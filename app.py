@@ -1,9 +1,9 @@
 from datetime import date
+from typing import Dict, Optional, Tuple, Union
 
 from authlib.integrations.flask_client import OAuth
-from flask import Flask, jsonify, redirect, request
+from flask import Flask, Response, jsonify, redirect, request
 from flask import session as flask_session
-from flask import url_for
 from flask_cors import CORS
 
 from config import config
@@ -13,6 +13,7 @@ app = Flask(__name__)
 app.secret_key = config["APP_SECRET_KEY"]
 
 CORS(app, origins="*", supports_credentials=True)
+
 
 oauth = OAuth(app)
 oauth.register(
@@ -30,7 +31,7 @@ oauth.register(
 ws_contest = oauth.create_client("ws test 5")
 
 
-def _str(val):
+def _str(val: Union[str, bytes]) -> str:
     """
     Ensures that the val is the default str() type for python2 or 3
     """
@@ -46,12 +47,12 @@ def _str(val):
             return str(val, "ascii")
 
 @app.route("/api/login")
-def login():
+def login() -> Response:
     return ws_contest.authorize_redirect() 
     
 
 @app.route("/api/logout")
-def logout():
+def logout() -> Union[Response, Tuple[Response, int]]:
     flask_session.clear()
     if "next" in request.args:
         return redirect(request.args["next"])
@@ -71,15 +72,16 @@ def authorize():
 
 
 @app.before_request
-def force_https():
+def force_https() -> Optional[Response]:
     if request.headers.get("X-Forwarded-Proto") == "http":
         return redirect(
             "https://" + request.headers["Host"] + request.headers["X-Original-URI"],
             code=301,
         )
+    return None
 
 
-def get_current_user(cached=True):
+def get_current_user(cached: bool = True) -> Optional[str]:
     if cached:
         print(flask_session)
 
@@ -92,6 +94,13 @@ def graph_data():
 @app.route("/api/contest/create", methods=["POST"])
 def create_contest():
     get_current_user(True)
+@app.route("/contest/create", methods=["POST"])
+def create_contest() -> Tuple[Response, int]:
+    if get_current_user(False) is None:
+        return (
+            jsonify("Please login!"),
+            403,
+        )
 
     if request.method == "POST":
         try:
@@ -132,7 +141,7 @@ def create_contest():
 
 
 @app.route("/api/contests", methods=["GET"])
-def contest_list():
+def contest_list() -> Tuple[Response, int]:
     session = Session()
     contests = (
         session.query(Contest)
@@ -158,14 +167,14 @@ def contest_list():
     )
 
 
-@app.route("/qpi/contest/<int:id>")
-def contest_by_id(id):
+@app.route("/api/contest/<int:id>")
+def contest_by_id(id: int) -> Tuple[Response, int]:
     session = Session()
     contest = session.get(Contest, id)
     if not contest:
         return jsonify("Contest with this id does not exist!"), 404
     else:
-        data = {}
+        data: Dict = {}
         data["contest_details"] = contest
         data["adminstrators"] = [admin.user_name for admin in contest.admins]
         data["books"] = [book.name for book in contest.books]
