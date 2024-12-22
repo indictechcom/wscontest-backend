@@ -5,6 +5,7 @@ from flask import Flask, jsonify, redirect, request
 from flask import session as flask_session
 from flask import url_for
 from flask_cors import CORS
+import traceback
 
 from config import config
 from models import Book, Contest, ContestAdmin, IndexPage, Session, User
@@ -114,7 +115,7 @@ def create_contest():
             for book in book_names:
                 session.add(Book(name=book.split(":")[1], contest=contest))
 
-            admins = data.get("admins").split("\n")
+            admins = [x.strip() for x in data.get("admins", [])]
             for admin_name in admins:
                 admin = (
                     session.query(ContestAdmin).filter_by(user_name=admin_name).first()
@@ -128,6 +129,7 @@ def create_contest():
 
             return jsonify({"success": True}), 200
         except Exception as e:
+            print(traceback.format_exc())
             return jsonify({"success": False, "message": str(e)}), 404
 
 
