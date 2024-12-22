@@ -158,7 +158,7 @@ def contest_list():
     )
 
 
-@app.route("/qpi/contest/<int:id>")
+@app.route("/api/contest/<int:id>")
 def contest_by_id(id):
     session = Session()
     contest = session.get(Contest, id)
