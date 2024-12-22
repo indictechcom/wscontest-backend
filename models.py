@@ -28,6 +28,12 @@ association_table = Table(
     Column("contest_admin_user_name", ForeignKey("contest_admin.user_name")),
 )
 
+jury_association_table = Table(
+    "jury_association_table",
+    Base.metadata,
+    Column("contest_cid", ForeignKey("contest.cid")),
+    Column("jury_user_name", ForeignKey("jury.user_name")),
+)
 
 @dataclass
 class Contest(Base):
@@ -49,7 +55,9 @@ class Contest(Base):
     )
     books = relationship("Book", back_populates="contest")
     users = relationship("User", back_populates="contests")
-
+    jury_members = relationship(
+        "Jury", back_populates="contests", secondary=jury_association_table
+    )
 
 class ContestAdmin(Base):
     __tablename__ = "contest_admin"
@@ -61,7 +69,6 @@ class ContestAdmin(Base):
         "Contest", back_populates="admins", secondary=association_table
     )
 
-
 class Book(Base):
     __tablename__ = "book"
 
@@ -69,7 +76,6 @@ class Book(Base):
     contest = relationship("Contest", back_populates="books")
     name = Column(String(190), nullable=False, primary_key=True)
     index_pages = relationship("IndexPage", back_populates="book")
-
 
 @dataclass
 class IndexPage(Base):
@@ -94,11 +100,10 @@ class IndexPage(Base):
     )
     proofreader = relationship(
         "User",
-        foreign_keys=[validator_username],
-        overlaps="validator",
+        foreign_keys=[proofreader_username],
         back_populates="proofread_pages",
     )
-
+    reviews = relationship("Review", back_populates="page")
 
 class User(Base):
     __tablename__ = "user"
@@ -116,8 +121,28 @@ class User(Base):
         "IndexPage",
         back_populates="validator",
         foreign_keys="[IndexPage.validator_username]",
-        overlaps="proofreader",
+    )
+    reviews = relationship("Review", back_populates="reviewer")
+
+class Jury(Base):
+    __tablename__ = "jury"
+
+    user_name = Column(String(190), primary_key=True, nullable=False)
+
+    contests = relationship(
+        "Contest", back_populates="jury_members", secondary=jury_association_table
     )
 
+class Review(Base):
+    __tablename__ = "review"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    page_id = Column(Integer, ForeignKey("index_page.id"), nullable=False)
+    reviewer_id = Column(String(190), ForeignKey("user.user_name"), nullable=False)
+    review_text = Column(String(500), nullable=True)
+    review_date = Column(DateTime, default=datetime.utcnow)
+
+    page = relationship("IndexPage", back_populates="reviews")
+    reviewer = relationship("User", back_populates="reviews")
 
 Base.metadata.create_all(engine)

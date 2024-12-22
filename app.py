@@ -5,9 +5,9 @@ from flask import Flask, jsonify, redirect, request
 from flask import session as flask_session
 from flask import url_for
 from flask_cors import CORS
-
+from flask_migrate import Migrate
 from config import config
-from models import Book, Contest, ContestAdmin, IndexPage, Session, User
+from models import Book, Contest, ContestAdmin, IndexPage, Session, User, engine
 
 app = Flask(__name__)
 app.secret_key = config["APP_SECRET_KEY"]
@@ -25,7 +25,7 @@ oauth.register(
     client_kwargs={},
 )
 
-
+migrate = Migrate(app, db)
 
 ws_contest = oauth.create_client("ws test 5")
 
