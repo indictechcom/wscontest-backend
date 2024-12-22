@@ -68,7 +68,7 @@ def authorize():
         profile = resp.json()
         print(profile)
         flask_session['profile'] = profile
-    return redirect("http://localhost:5173/contest")
+    return redirect("http://localhost:5173/")
 
 
 @app.before_request
@@ -91,16 +91,18 @@ def graph_data():
     return jsonify("graph data here")
 
 
+@app.route('/api/user')
+def getUser():
+    return jsonify(flask_session["profile"])
+
+
 @app.route("/api/contest/create", methods=["POST"])
-def create_contest():
-    get_current_user(True)
-@app.route("/contest/create", methods=["POST"])
 def create_contest() -> Tuple[Response, int]:
-    if get_current_user(False) is None:
-        return (
-            jsonify("Please login!"),
-            403,
-        )
+#     if get_current_user(False) is None:
+#         return (
+#             jsonify("Please login!"),
+#             403,
+#         )
 
     if request.method == "POST":
         try:
