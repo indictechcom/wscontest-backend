@@ -60,7 +60,7 @@ def logout() -> Union[Response, Tuple[Response, int]]:
 
 
 @app.route("/oauth-k")
-def authorize():
+def authorize() -> Response:
     token = ws_contest.authorize_access_token()
     if token:
         resp = ws_contest.get("/w/rest.php/oauth2/resource/profile", token=token)
@@ -87,13 +87,15 @@ def get_current_user(cached: bool = True) -> Optional[str]:
 
 
 @app.route("/api/graph-data", methods=["GET"])
-def graph_data():
+def graph_data() -> Response:
     return jsonify("graph data here")
 
 
 @app.route("/api/contest/create", methods=["POST"])
-def create_contest():
+def create_contest() -> Tuple[Response, int]:
     get_current_user(True)
+
+
 @app.route("/contest/create", methods=["POST"])
 def create_contest() -> Tuple[Response, int]:
     if get_current_user(False) is None:

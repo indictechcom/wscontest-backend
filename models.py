@@ -73,10 +73,10 @@ class ContestAdmin(Base):
 class Book(Base):
     __tablename__ = "book"
 
-    cid = Column(Integer, ForeignKey("contest.cid"))
-    contest = relationship("Contest", back_populates="books")
-    name = Column(String(190), nullable=False, primary_key=True)
-    index_pages = relationship("IndexPage", back_populates="book")
+    cid: Mapped[int] = mapped_column(Integer, ForeignKey("contest.cid"))
+    contest: Mapped[Contest] = relationship("Contest", back_populates="books")
+    name: Mapped[str] = mapped_column(String(190), nullable=False, primary_key=True)
+    index_pages: Mapped[List["IndexPage"]] = relationship("IndexPage", back_populates="book")
 
 @dataclass
 class IndexPage(Base):
@@ -128,22 +128,21 @@ class User(Base):
 class Jury(Base):
     __tablename__ = "jury"
 
-    user_name = Column(String(190), primary_key=True, nullable=False)
-
-    contests = relationship(
+    user_name: Mapped[str] = mapped_column(String(190), primary_key=True, nullable=False)
+    contests: Mapped[List[Contest]] = relationship(
         "Contest", back_populates="jury_members", secondary=jury_association_table
     )
 
 class Review(Base):
     __tablename__ = "review"
 
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    page_id = Column(Integer, ForeignKey("index_page.id"), nullable=False)
-    reviewer_id = Column(String(190), ForeignKey("user.user_name"), nullable=False)
-    review_text = Column(String(500), nullable=True)
-    review_date = Column(DateTime, default=datetime.utcnow)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    page_id: Mapped[int] = mapped_column(Integer, ForeignKey("index_page.id"), nullable=False)
+    reviewer_id: Mapped[str] = mapped_column(String(190), ForeignKey("user.user_name"), nullable=False)
+    review_text: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    review_date: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
-    page = relationship("IndexPage", back_populates="reviews")
-    reviewer = relationship("User", back_populates="reviews")
+    page: Mapped[IndexPage] = relationship("IndexPage", back_populates="reviews")
+    reviewer: Mapped[User] = relationship("User", back_populates="reviews")
 
 Base.metadata.create_all(engine)

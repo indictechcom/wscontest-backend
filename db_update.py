@@ -12,7 +12,6 @@ def run() -> None:
     user_agent: str = "IndicWikisourceContest/1.1 (Development; https://example.org/IndicWikisourceContest/;) pywikisource/0.0.5"
 
     for contest in contests:
-        # print(contest.name)
         if dt.datetime.today() > contest.end_date:
             contest.status = False            
         if contest.status == False:
@@ -25,12 +24,10 @@ def run() -> None:
             for book in books:
                 try:
                     page_list: List[str] = ws.createdPageList(book.name)
-                    # print(page_list)
 
                     for page in page_list:
                         ipage: IndexPage = IndexPage(book_name=book.name, page_name=page)
                         response: Dict = ws.pageStatus(page)
-                        # print(response)
 
                         if response['proofread'] is not None:
                             user: Optional[User] = session.query(User).filter_by(user_name=response["proofread"]["user"], cid=contest.cid).first()
@@ -57,9 +54,7 @@ def run() -> None:
                 except Exception as e:
                     print(f"Error in {contest.name} contest: {e}")
 
-        
     session.commit()
-
     session.close()
 
 if __name__ == "__main__":
