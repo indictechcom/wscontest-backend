@@ -13,6 +13,7 @@ TIMEZONE = os.getenv("TIMEZONE")
 CONSUMER_KEY = os.getenv("CONSUMER_KEY")
 CONSUMER_SECRET = os.getenv("CONSUMER_SECRET")
 APP_NAME = os.getenv("CONSUMER_APP_NAME")
+SIGNING_KEY = os.getenv("SIGNING_KEY")
 OAUTH_MWURI = (
     "https://meta.wikimedia.org/w/"
     if curr_env == "production"
