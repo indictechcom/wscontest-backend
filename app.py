@@ -8,6 +8,7 @@ from flask_cors import CORS
 from extensions import db, migrate
 from config import config
 from models import Book, Contest, ContestAdmin, IndexPage, User
+import jwt
 
 app = Flask(__name__)
 app.secret_key = config["APP_SECRET_KEY"]
@@ -71,10 +72,39 @@ def authorize():
         resp = ws_contest.get("/w/rest.php/oauth2/resource/profile", token=token)
         resp.raise_for_status()
         profile = resp.json()
-        print(profile)
         flask_session['profile'] = profile
+        response = redirect("http://localhost:5173/contest")
+        access_token = tokenise(profile['username'],config["SIGNING_KEY"])
+        response.set_cookie(
+            "auth_token", 
+            access_token, 
+            httponly=True, 
+            secure=False,
+            samesite='None'
+        )
+        return response
     return redirect("http://localhost:5173/contest")
 
+def tokenise(profile,key):
+    access_token = jwt.encode({'user': profile},key,algorithm="HS256")
+    return access_token
+
+
+
+def auth_middleware():
+    token = request.cookies.get("auth_token")
+    if token:
+        try:
+            data = jwt.decode(
+                token,
+                config["SIGNING_KEY"],
+                algorithms=["HS256"]
+            )
+            return data['user']
+        except Exception as e:
+            return jsonify({"error": e})
+
+        
 
 @app.before_request
 def force_https():
