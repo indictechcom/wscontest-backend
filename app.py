@@ -5,12 +5,20 @@ from flask import Flask, jsonify, redirect, request
 from flask import session as flask_session
 from flask import url_for
 from flask_cors import CORS
-from flask_migrate import Migrate
+from extensions import db, migrate
 from config import config
-from models import Book, Contest, ContestAdmin, IndexPage, Session, User, engine
+from models import Book, Contest, ContestAdmin, IndexPage, User
 
 app = Flask(__name__)
 app.secret_key = config["APP_SECRET_KEY"]
+
+# Add SQLAlchemy configuration
+app.config['SQLALCHEMY_DATABASE_URI'] = config["SQL_URI"]
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Initialize extensions
+db.init_app(app)
+migrate.init_app(app, db)
 
 CORS(app, origins="*", supports_credentials=True)
 
@@ -24,8 +32,6 @@ oauth.register(
     api_base_url="https://commons.wikimedia.org/w",
     client_kwargs={},
 )
-
-migrate = Migrate(app, db)
 
 ws_contest = oauth.create_client("ws test 5")
 
@@ -96,7 +102,6 @@ def create_contest():
     if request.method == "POST":
         try:
             data = request.json
-            session = Session()
 
             contest = Contest(
                 name=data["name"],
@@ -108,23 +113,21 @@ def create_contest():
                 point_per_validate=int(data["validate_points"]),
                 lang=data["language"],
             )
-            session.add(contest)
+            db.session.add(contest)
 
             book_names = data.get("book_names").split("\n")
             for book in book_names:
-                session.add(Book(name=book.split(":")[1], contest=contest))
+                db.session.add(Book(name=book.split(":")[1], contest=contest))
 
             admins = data.get("admins").split("\n")
             for admin_name in admins:
-                admin = (
-                    session.query(ContestAdmin).filter_by(user_name=admin_name).first()
-                )
+                admin = ContestAdmin.query.filter_by(user_name=admin_name).first()
                 if admin:
                     admin.contests.append(contest)
                 else:
-                    session.add(ContestAdmin(user_name=admin_name, contests=[contest]))
+                    db.session.add(ContestAdmin(user_name=admin_name, contests=[contest]))
 
-            session.commit()
+            db.session.commit()
 
             return jsonify({"success": True}), 200
         except Exception as e:
@@ -133,9 +136,8 @@ def create_contest():
 
 @app.route("/api/contests", methods=["GET"])
 def contest_list():
-    session = Session()
     contests = (
-        session.query(Contest)
+        Contest.query
         .with_entities(
             Contest.name, Contest.start_date, Contest.end_date, Contest.status
         )
@@ -160,8 +162,7 @@ def contest_list():
 
 @app.route("/api/contest/<int:id>")
 def contest_by_id(id):
-    session = Session()
-    contest = session.get(Contest, id)
+    contest = Contest.query.get(id)
     if not contest:
         return jsonify("Contest with this id does not exist!"), 404
     else:
@@ -171,7 +172,7 @@ def contest_by_id(id):
         data["books"] = [book.name for book in contest.books]
 
         data["users"] = []
-        for user in session.query(User).filter(User.cid == id).all():
+        for user in User.query.filter(User.cid == id).all():
             proofread_count = len(user.proofread_pages)
             validated_count = len(user.validated_pages)
             points = (proofread_count * contest.point_per_proofread) + (
@@ -183,7 +184,7 @@ def contest_by_id(id):
                         "proofread_count": proofread_count,
                         "validated_count": validated_count,
                         "points": points,
-                        "pages": session.query(IndexPage)
+                        "pages": IndexPage.query
                         .filter(
                             (IndexPage.validator_username == user.user_name)
                             | (IndexPage.proofreader_username == user.user_name)
