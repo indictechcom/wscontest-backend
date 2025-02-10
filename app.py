@@ -1,7 +1,7 @@
 from datetime import date
 
 from authlib.integrations.flask_client import OAuth
-from flask import Flask, jsonify, redirect, request
+from flask import Flask, jsonify, redirect, request, make_response
 from flask import session as flask_session
 from flask import url_for
 from flask_cors import CORS
@@ -73,14 +73,25 @@ def authorize():
         resp.raise_for_status()
         profile = resp.json()
         flask_session['profile'] = profile
-        response = redirect("http://localhost:5173/contest")
-        access_token = tokenise(profile['username'],config["SIGNING_KEY"])
+        response = make_response(redirect("http://localhost:5173/contest"))
+        access_token = tokenise(profile,config['SIGNING_KEY'])
         response.set_cookie(
             "auth_token", 
             access_token, 
             httponly=True, 
             secure=False,
-            samesite='None'
+            path='/',
+            domain='127.0.0.1',
+            samesite='Lax'
+        )
+        response.set_cookie(
+            "user",
+            profile["username"],
+            httponly=False, 
+            secure=False,
+            path='/',
+            domain='127.0.0.1',
+            samesite='Lax'
         )
         return response
     return redirect("http://localhost:5173/contest")
