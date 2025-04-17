@@ -1,0 +1,41 @@
+### Variables
+@baseUrl = http://localhost:5000/api
+
+### Authentication Routes
+### Login
+GET {{baseUrl}}/login
+
+### Logout
+GET {{baseUrl}}/logout
+
+### OAuth Callback
+GET {{baseUrl}}/oauth-k
+
+### Contest Routes
+### Get all contests
+GET {{baseUrl}}/contests
+
+### Get contest by ID
+GET {{baseUrl}}/contest/1
+
+### Create new contest
+POST {{baseUrl}}/contest/create
+Content-Type: application/json
+
+{
+    "name": "Test Contest",
+    "start_date": "2024-03-20",
+    "end_date": "2024-04-20",
+    "proofread_points": 10,
+    "validate_points": 5,
+    "language": "en",
+    "book_names": "Book1:Test Book 1\nBook2:Test Book 2",
+    "admins": "Admin1\nAdmin2"
+}
+
+### Other Routes
+### Get graph data
+GET {{baseUrl}}/graph-data
+
+### Force HTTPS (this is usually handled by middleware)
+GET http://localhost:5000/any-route 
