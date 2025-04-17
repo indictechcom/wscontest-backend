@@ -1,4 +1,4 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 from pywikisource import WikiSourceApi
 import datetime as dt
@@ -7,9 +7,9 @@ from models import Contest, Book, IndexPage, User
 from dateutil import parser
 from extensions import db  # Import db from extensions instead
 
-def run():
-    contests = Contest.query.all()
-    user_agent = "IndicWikisourceContest/1.1 (Development; https://example.org/IndicWikisourceContest/;) pywikisource/0.0.5"
+def run() -> None:
+    contests: List[Contest] = Contest.query.all()
+    user_agent: str = "IndicWikisourceContest/1.1 (Development; https://example.org/IndicWikisourceContest/;) pywikisource/0.0.5"
 
     for contest in contests:
         if dt.datetime.today() > contest.end_date:
@@ -19,7 +19,7 @@ def run():
         elif contest.status == True:
             ws: WikiSourceApi = WikiSourceApi(contest.lang, user_agent)
 
-            books = Book.query.filter_by(cid=contest.cid).all()
+            books: List[Book] = Book.query.filter_by(cid=contest.cid).all()
 
             for book in books:
                 try:
@@ -27,10 +27,10 @@ def run():
 
                     for page in page_list:
                         ipage: IndexPage = IndexPage(book_name=book.name, page_name=page)
-                        response: Dict = ws.pageStatus(page)
+                        response: Dict[str, Any] = ws.pageStatus(page)
 
                         if response['proofread'] is not None:
-                            user = User.query.filter_by(user_name=response["proofread"]["user"], cid=contest.cid).first()
+                            user: Optional[User] = User.query.filter_by(user_name=response["proofread"]["user"], cid=contest.cid).first()
                             if not user:
                                 user = User(user_name=response["proofread"]["user"], cid=contest.cid)
                                 db.session.add(user)
@@ -40,7 +40,7 @@ def run():
                             ipage.p_revision_id = response["proofread"]["revid"]
 
                         if response['validate'] is not None:
-                            user = User.query.filter_by(user_name=response["validate"]["user"], cid=contest.cid).first()
+                            user: Optional[User] = User.query.filter_by(user_name=response["validate"]["user"], cid=contest.cid).first()
                             if not user:
                                 user = User(user_name=response["validate"]["user"], cid=contest.cid)
                                 db.session.add(user)
