@@ -90,6 +90,8 @@ def force_https() -> Optional[Response]:
 def get_current_user(cached: bool = True) -> Optional[str]:
     if cached:
         print(flask_session)
+    #! This function seems incomplete, needs implementation
+    return None
 
 
 @app.route("/api/graph-data", methods=["GET"])
@@ -98,8 +100,10 @@ def graph_data() -> Response:
 
 
 @app.route("/api/contest/create", methods=["POST"])
-def create_contest() -> Tuple[Response, int]:
+def create_contest_api() -> Tuple[Response, int]:
     get_current_user(True)
+    #! This function seems incomplete, needs implementation
+    return jsonify({"error": "Not implemented"}), 501
 
 
 @app.route("/contest/create", methods=["POST"])
