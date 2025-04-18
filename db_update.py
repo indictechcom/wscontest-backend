@@ -1,53 +1,51 @@
+from typing import Dict, List, Optional, Any
+
 from pywikisource import WikiSourceApi
-import json
 import datetime as dt
 from pytz import timezone
 from models import Contest, Book, IndexPage, User
 from dateutil import parser
 from extensions import db  # Import db from extensions instead
 
-def run():
-    contests = Contest.query.all()
-    user_agent = "IndicWikisourceContest/1.1 (Development; https://example.org/IndicWikisourceContest/;) pywikisource/0.0.5"
+def run() -> None:
+    contests: List[Contest] = Contest.query.all()
+    user_agent: str = "IndicWikisourceContest/1.1 (Development; https://example.org/IndicWikisourceContest/;) pywikisource/0.0.5"
 
     for contest in contests:
-        # print(contest.name)
         if dt.datetime.today() > contest.end_date:
             contest.status = False            
         if contest.status == False:
             continue 
         elif contest.status == True:
-            ws = WikiSourceApi(contest.lang, user_agent)
+            ws: WikiSourceApi = WikiSourceApi(contest.lang, user_agent)
 
-            books = Book.query.filter_by(cid=contest.cid).all()
+            books: List[Book] = Book.query.filter_by(cid=contest.cid).all()
 
             for book in books:
                 try:
-                    page_list = ws.createdPageList(book.name)
-                    # print(page_list)
+                    page_list: List[str] = ws.createdPageList(book.name)
 
                     for page in page_list:
-                        ipage = IndexPage(book_name=book.name, page_name=page)
-                        response = ws.pageStatus(page)
-                        # print(response)
+                        ipage: IndexPage = IndexPage(book_name=book.name, page_name=page)
+                        response: Dict[str, Any] = ws.pageStatus(page)
 
                         if response['proofread'] is not None:
-                            user = User.query.filter_by(user_name=response["proofread"]["user"], cid=contest.cid).first()
+                            user: Optional[User] = User.query.filter_by(user_name=response["proofread"]["user"], cid=contest.cid).first()
                             if not user:
                                 user = User(user_name=response["proofread"]["user"], cid=contest.cid)
                                 db.session.add(user)
                             ipage.proofreader_username = user.user_name
-                            proofread_time = parser.parse(response["proofread"]["timestamp"])
+                            proofread_time: dt.datetime = parser.parse(response["proofread"]["timestamp"])
                             ipage.proofread_time = proofread_time.strftime('%Y-%m-%d %H:%M:%S')
                             ipage.p_revision_id = response["proofread"]["revid"]
 
                         if response['validate'] is not None:
-                            user = User.query.filter_by(user_name=response["validate"]["user"], cid=contest.cid).first()
+                            user: Optional[User] = User.query.filter_by(user_name=response["validate"]["user"], cid=contest.cid).first()
                             if not user:
                                 user = User(user_name=response["validate"]["user"], cid=contest.cid)
                                 db.session.add(user)
                             ipage.validator_username = user.user_name
-                            validate_time = parser.parse(response["validate"]["timestamp"])
+                            validate_time: dt.datetime = parser.parse(response["validate"]["timestamp"])
                             ipage.validate_time = validate_time.strftime('%Y-%m-%d %H:%M:%S')
                             ipage.v_revision_id = response["validate"]["revid"]
 
