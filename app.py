@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Dict, List, Optional, Tuple, Union, Any
 
-from authlib.integrations.flask_client import OAuth
+from mwoauth import ConsumerToken, Handshaker, RequestToken
 from flask import Flask, Response, jsonify, redirect, request
 from flask import session as flask_session
 from flask_cors import CORS
@@ -12,87 +12,76 @@ from models import Book, Contest, ContestAdmin, IndexPage, User
 app: Flask = Flask(__name__)
 app.secret_key = config["APP_SECRET_KEY"]
 
-# Add SQLAlchemy configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = config["SQL_URI"]
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-# Initialize extensions
 db.init_app(app)
 migrate.init_app(app, db)
 
-CORS(app, origins="*", supports_credentials=True)
-
-
-oauth: OAuth = OAuth(app)
-oauth.register(
-    name=config["APP_NAME"],
-    client_id=config["CONSUMER_KEY"],
-    client_secret=config["CONSUMER_SECRET"],
-    access_token_url="https://commons.wikimedia.org/w/rest.php/oauth2/access_token",
-    authorize_url="https://commons.wikimedia.org/w/rest.php/oauth2/authorize",
-    api_base_url="https://commons.wikimedia.org/w",
-    client_kwargs={},
+consumer_token: ConsumerToken = ConsumerToken(
+    config["CONSUMER_KEY"], config["CONSUMER_SECRET"]
 )
+WIKI_OAUTH_URL = "https://meta.wikimedia.org/w/index.php"
 
-ws_contest = oauth.create_client("ws test 5")
+CORS(app, origins="[http://localhost:5173]", supports_credentials=True)
+
+"""oAut logic"""
 
 
-def _str(val: Union[str, bytes]) -> str:
-    """
-    Ensures that the val is the default str() type for python2 or 3
-    """
-    if str == bytes:
-        if isinstance(val, str):
-            return val
-        else:
-            return str(val)
-    else:
-        if isinstance(val, str):
-            return val
-        else:
-            return str(val, "ascii")
-
-@app.route("/api/login")
+@app.route("/login")
 def login() -> Response:
-    return ws_contest.authorize_redirect() 
+    handshaker = Handshaker(WIKI_OAUTH_URL, consumer_token)
     
+    redirect_url, request_token = handshaker.initiate()
+    
+    flask_session['request_token_key'] = request_token.key
+    flask_session['request_token_secret'] = request_token.secret
+    
+    flask_session['return_to_url'] = request.args.get('next', 'http://localhost:5173')
+    
+    return redirect(redirect_url)
 
-@app.route("/api/logout")
-def logout() -> Union[Response, Tuple[Response, int]]:
+@app.route("/logout")
+def logout() -> Response:
     flask_session.clear()
-    if "next" in request.args:
-        return redirect(request.args["next"])
-    return jsonify({"status": "logged out"})
+    return redirect(request.args.get('next', '/'))
 
+@app.route("/complete-login")
+def complete_login() -> Response:
+    handshaker = Handshaker(WIKI_OAUTH_URL, consumer_token)
+    
+    rt_key = flask_session.get('request_token_key')
+    rt_secret = flask_session.get('request_token_secret')
+    
+    if not rt_key or not rt_secret:
+        return redirect('/login')
+    
+    request_token = RequestToken(rt_key, rt_secret)
+    
+    try:
+        access_token = handshaker.complete(request_token, request.query_string)
+        identity = handshaker.identify(access_token)
+        
+        userid = identity['sub']
+        username = identity['username']
+        
+        # Store user info in session
+        flask_session['userid'] = userid
+        flask_session['username'] = username
+        
+        print(f"Logged in user: {username} (ID: {userid})")
+        
+        # Always redirect to frontend after successful login
+        return_url = flask_session.pop('return_to_url', 'http://localhost:5173')
+        return redirect(return_url)
+        
+    except Exception as e:
+        print(f"OAuth error: {e}")
+        return redirect('/login')
 
-@app.route("/oauth-k")
-def authorize() -> Response:
-    token: Dict[str, Any] = ws_contest.authorize_access_token()
-    if token:
-        resp = ws_contest.get("/w/rest.php/oauth2/resource/profile", token=token)
-        resp.raise_for_status()
-        profile: Dict[str, Any] = resp.json()
-        print(profile)
-        flask_session['profile'] = profile
-    return redirect("http://localhost:5173/contest")
-
-
-@app.before_request
-def force_https() -> Optional[Response]:
-    if request.headers.get("X-Forwarded-Proto") == "http":
-        return redirect(
-            "https://" + request.headers["Host"] + request.headers["X-Original-URI"],
-            code=301,
-        )
-    return None
-
+""" Logical routes for the app """
 
 def get_current_user(cached: bool = True) -> Optional[str]:
-    if cached:
-        print(flask_session)
-    #! This function seems incomplete, needs implementation
-    return None
-
+    return flask_session.get('username')
 
 @app.route("/api/graph-data", methods=["GET"])
 def graph_data() -> Response:

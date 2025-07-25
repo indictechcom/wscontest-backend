@@ -21,7 +21,7 @@ OAUTH_MWURI: str = (
 )
 APP_SECRET_KEY: Optional[str] = os.getenv("APP_SECRET_KEY")
 config: Dict[str, Any] = {
-    "SQL_URI": f"mariadb+pymysql://{DB_USERNAME}:{DB_PASSWORD}@{DB_URL}:3306/{DB_NAME}",
+    "SQL_URI": f"mysql+pymysql://{DB_USERNAME}:{DB_PASSWORD}@{DB_URL}:3306/{DB_NAME}",
     "TIMEZONE": TIMEZONE,
     "CONSUMER_KEY": CONSUMER_KEY,
     "CONSUMER_SECRET": CONSUMER_SECRET,
