@@ -20,6 +20,18 @@ jury_association_table = db.Table(
     db.Column("jury_user_name", db.ForeignKey("jury.user_name")),
 )
 
+book_contest_association_table = db.Table(
+    "book_contest_association_table",
+    db.Column("contest_cid", db.ForeignKey("contest.cid")),
+    db.Column("book_name", db.ForeignKey("book.name")),
+)
+
+user_contest_association_table = db.Table(
+    "user_contest_association_table",
+    db.Column("contest_cid", db.ForeignKey("contest.cid")),
+    db.Column("user_name", db.ForeignKey("user.user_name")),
+)
+
 @dataclass
 class Contest(db.Model):
     __tablename__ = "contest"
@@ -38,8 +50,12 @@ class Contest(db.Model):
     admins: Mapped[List["ContestAdmin"]] = relationship(
         "ContestAdmin", back_populates="contests", secondary=association_table
     )
-    books: Mapped[List["Book"]] = relationship("Book", back_populates="contest")
-    users: Mapped[List["User"]] = relationship("User", back_populates="contests")
+    books: Mapped[List["Book"]] = relationship(
+        "Book", back_populates="contests", secondary=book_contest_association_table
+    )
+    users: Mapped[List["User"]] = relationship(
+        "User", back_populates="contests", secondary=user_contest_association_table
+    )
     jury_members: Mapped[List["Jury"]] = relationship(
         "Jury", back_populates="contests", secondary=jury_association_table
     )
@@ -49,7 +65,6 @@ class ContestAdmin(db.Model):
     __tablename__ = "contest_admin"
 
     user_name: Mapped[str] = db.Column(db.String(190), primary_key=True, nullable=False)
-    cid: Mapped[Optional[int]] = db.Column(db.Integer, db.ForeignKey("contest.cid"))
 
     contests: Mapped[List["Contest"]] = relationship(
         "Contest", back_populates="admins", secondary=association_table
@@ -59,9 +74,10 @@ class ContestAdmin(db.Model):
 class Book(db.Model):
     __tablename__ = "book"
 
-    cid: Mapped[Optional[int]] = db.Column(db.Integer, db.ForeignKey("contest.cid"))
-    contest: Mapped["Contest"] = relationship("Contest", back_populates="books")
     name: Mapped[str] = db.Column(db.String(190), nullable=False, primary_key=True)
+    contests: Mapped[List["Contest"]] = relationship(
+        "Contest", back_populates="books", secondary=book_contest_association_table
+    )
     index_pages: Mapped[List["IndexPage"]] = relationship("IndexPage", back_populates="book")
 
 @dataclass
@@ -97,9 +113,10 @@ class User(db.Model):
     __tablename__ = "user"
 
     user_name: Mapped[str] = db.Column(db.String(190), primary_key=True, nullable=False)
-    cid: Mapped[Optional[int]] = db.Column(db.Integer, db.ForeignKey("contest.cid"))
 
-    contests: Mapped[List["Contest"]] = relationship("Contest", back_populates="users")
+    contests: Mapped[List["Contest"]] = relationship(
+        "Contest", back_populates="users", secondary=user_contest_association_table
+    )
     proofread_pages: Mapped[List["IndexPage"]] = relationship(
         "IndexPage",
         back_populates="proofreader",

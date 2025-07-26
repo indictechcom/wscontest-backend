@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Dict, List, Optional, Tuple, Union, Any
 
 from mwoauth import ConsumerToken, Handshaker, RequestToken
@@ -22,10 +22,10 @@ consumer_token: ConsumerToken = ConsumerToken(
 )
 WIKI_OAUTH_URL = "https://meta.wikimedia.org/w/index.php"
 
-CORS(app, origins="[http://localhost:5173]", supports_credentials=True)
+CORS(app, origins=["http://localhost:5173"], supports_credentials=True)
 
-"""oAut logic"""
 
+"""oAuth logic"""
 
 @app.route("/login")
 def login() -> Response:
@@ -83,16 +83,25 @@ def complete_login() -> Response:
 def get_current_user(cached: bool = True) -> Optional[str]:
     return flask_session.get('username')
 
-@app.route("/api/graph-data", methods=["GET"])
+@app.route("/user", methods=["GET"])
+def get_user_info() -> Tuple[Response, int]:
+    username = get_current_user()
+    if username:
+        return jsonify({
+            "logged_in": True,
+            "username": username,
+            "userid": flask_session.get('userid')
+        }), 200
+    else:
+        return jsonify({
+            "logged_in": False,
+            "username": None,
+            "userid": None
+        }), 200
+
+@app.route("/graph-data", methods=["GET"])
 def graph_data() -> Response:
     return jsonify("graph data here")
-
-
-@app.route("/api/contest/create", methods=["POST"])
-def create_contest_api() -> Tuple[Response, int]:
-    get_current_user(True)
-    #! This function seems incomplete, needs implementation
-    return jsonify({"error": "Not implemented"}), 501
 
 
 @app.route("/contest/create", methods=["POST"])
@@ -121,7 +130,17 @@ def create_contest() -> Tuple[Response, int]:
 
             book_names: List[str] = data.get("book_names").split("\n")
             for book in book_names:
-                db.session.add(Book(name=book.split(":")[1], contest=contest))
+                book_name = book.split(":")[1]
+                existing_book: Optional[Book] = Book.query.filter_by(name=book_name).first()
+                if existing_book:
+                    # Book already exists, add this contest to it if not already added
+                    if contest not in existing_book.contests:
+                        existing_book.contests.append(contest)
+                else:
+                    # Create new book and add the contest to it
+                    new_book = Book(name=book_name)
+                    new_book.contests.append(contest)
+                    db.session.add(new_book)
 
             admins: List[str] = data.get("admins").split("\n")
             for admin_name in admins:
@@ -135,67 +154,87 @@ def create_contest() -> Tuple[Response, int]:
 
             return jsonify({"success": True}), 200
         except Exception as e:
+            print(f"Error creating contest: {e}")
             return jsonify({"success": False, "message": str(e)}), 404
 
 
-@app.route("/api/contests", methods=["GET"])
+@app.route("/contests", methods=["GET"])
 def contest_list() -> Tuple[Response, int]:
-    contests: List[Tuple[str, date, date, bool]] = (
-        Contest.query
-        .with_entities(
-            Contest.name, Contest.start_date, Contest.end_date, Contest.status
-        )
-        .all()
-    )
-
-    return (
-        jsonify(
-            [
-                {
-                    "name": name,
-                    "start_date": start_date.strftime("%d-%m-%Y"),
-                    "end_date": end_date.strftime("%d-%m-%Y"),
-                    "status": status,
-                }
-                for name, start_date, end_date, status in contests
-            ]
-        ),
-        200,
-    )
+    contests: List[Contest] = Contest.query.all()
+    
+    result = []
+    for contest in contests:
+        current_date = datetime.now().date()
+        contest_end_date = contest.end_date.date() if hasattr(contest.end_date, 'date') else contest.end_date
+        is_running = current_date <= contest_end_date and contest.status is not False
+        
+        result.append({
+            "id": contest.cid,  
+            "name": contest.name,
+            "start_date": contest.start_date.strftime("%d-%m-%Y"),
+            "end_date": contest.end_date.strftime("%d-%m-%Y"),
+            "status": is_running,  
+        })
+    
+    return jsonify(result), 200
 
 
-@app.route("/api/contest/<int:id>")
+@app.route("/contest/<int:id>")
 def contest_by_id(id: int) -> Tuple[Response, int]:
     contest: Optional[Contest] = Contest.query.get(id)
     if not contest:
         return jsonify("Contest with this id does not exist!"), 404
     else:
         data: Dict[str, Any] = {}
-        data["contest_details"] = contest
+
+        data["contest_details"] = {
+            "cid": contest.cid,
+            "name": contest.name,
+            "created_by": contest.created_by,
+            "createdon": contest.createdon.isoformat() if contest.createdon else None,
+            "start_date": contest.start_date.isoformat() if contest.start_date else None,
+            "end_date": contest.end_date.isoformat() if contest.end_date else None,
+            "status": contest.status,
+            "point_per_proofread": contest.point_per_proofread,
+            "point_per_validate": contest.point_per_validate,
+            "lang": contest.lang
+        }
         data["adminstrators"] = [admin.user_name for admin in contest.admins]
         data["books"] = [book.name for book in contest.books]
 
         data["users"] = []
-        for user in User.query.filter(User.cid == id).all():
+        for user in contest.users:
             proofread_count: int = len(user.proofread_pages)
             validated_count: int = len(user.validated_pages)
             points: int = (proofread_count * contest.point_per_proofread) + (
                 validated_count * contest.point_per_validate
             )
-            data["users"].append(
-                {
-                    user.user_name: {
-                        "proofread_count": proofread_count,
-                        "validated_count": validated_count,
-                        "points": points,
-                        "pages": IndexPage.query
-                        .filter(
-                            (IndexPage.validator_username == user.user_name)
-                            | (IndexPage.proofreader_username == user.user_name)
-                        ).all(),
-                    }
+            
+            user_pages = []
+            contest_book_names = [book.name for book in contest.books]
+            for page in IndexPage.query.filter(
+                (IndexPage.validator_username == user.user_name) |
+                (IndexPage.proofreader_username == user.user_name)
+            ).all():
+                if page.book_name in contest_book_names:
+                    user_pages.append({
+                        "id": page.id,
+                        "page_name": page.page_name,
+                        "book_name": page.book_name,
+                        "validate_time": page.validate_time.isoformat() if page.validate_time else None,
+                        "proofread_time": page.proofread_time.isoformat() if page.proofread_time else None,
+                        "v_revision_id": page.v_revision_id,
+                        "p_revision_id": page.p_revision_id
+                    })
+            
+            data["users"].append({
+                user.user_name: {
+                    "proofread_count": proofread_count,
+                    "validated_count": validated_count,
+                    "points": points,
+                    "pages": user_pages,
                 }
-            )
+            })
         return jsonify(data), 200
 
 
