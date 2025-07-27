@@ -1,9 +1,10 @@
 from datetime import date, datetime
 from typing import Dict, List, Optional, Tuple, Union, Any
 import logging
+import os
 
 from mwoauth import ConsumerToken, Handshaker, RequestToken
-from flask import Flask, Response, jsonify, redirect, request
+from flask import Flask, Response, jsonify, redirect, request, send_from_directory, send_file
 from flask import session as flask_session
 from flask_cors import CORS
 from extensions import db, migrate
@@ -17,7 +18,13 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-app: Flask = Flask(__name__)
+# Determine static folder path - look for dist folder in parent directory
+static_folder = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'wscontest', 'dist')
+if not os.path.exists(static_folder):
+    static_folder = None
+    logger.warning("Frontend dist folder not found. Build the frontend first with 'npm run build'")
+
+app: Flask = Flask(__name__, static_folder=static_folder, static_url_path='')
 app.secret_key = config["APP_SECRET_KEY"]
 
 app.config['SQLALCHEMY_DATABASE_URI'] = config["SQL_URI"]
@@ -33,9 +40,32 @@ WIKI_OAUTH_URL = "https://meta.wikimedia.org/w/index.php"
 CORS(app, origins=[config["FRONTEND_URL"]], supports_credentials=True)
 
 
+"""Static file serving for frontend"""
+
+@app.route('/')
+def serve_frontend():
+    """Serve the main frontend application"""
+    if app.static_folder and os.path.exists(os.path.join(app.static_folder, 'index.html')):
+        return send_from_directory(app.static_folder, 'index.html')
+    else:
+        return jsonify({"message": "Frontend not built. Run 'npm run build' in the wscontest directory."}), 404
+
+@app.route('/<path:path>')
+def serve_static_files(path):
+    """Serve static files (JS, CSS, images, etc.) and handle React Router"""
+    if app.static_folder:
+        if os.path.exists(os.path.join(app.static_folder, path)):
+            return send_from_directory(app.static_folder, path)
+        else:
+            # For React Router - serve index.html for unknown routes (SPA routing)
+            if os.path.exists(os.path.join(app.static_folder, 'index.html')):
+                return send_from_directory(app.static_folder, 'index.html')
+    return jsonify({"error": "File not found"}), 404
+
+
 """oAuth logic"""
 
-@app.route("/login")
+@app.route("/api/login")
 def login() -> Response:
     handshaker = Handshaker(WIKI_OAUTH_URL, consumer_token)
     
@@ -48,12 +78,12 @@ def login() -> Response:
     
     return redirect(redirect_url)
 
-@app.route("/logout")
+@app.route("/api/logout")
 def logout() -> Response:
     flask_session.clear()
     return redirect(request.args.get('next', '/'))
 
-@app.route("/complete-login")
+@app.route("/api/complete-login")
 def complete_login() -> Response:
     handshaker = Handshaker(WIKI_OAUTH_URL, consumer_token)
     
@@ -61,7 +91,7 @@ def complete_login() -> Response:
     rt_secret = flask_session.get('request_token_secret')
     
     if not rt_key or not rt_secret:
-        return redirect('/login')
+        return redirect('/api/login')
     
     request_token = RequestToken(rt_key, rt_secret)
     
@@ -84,14 +114,14 @@ def complete_login() -> Response:
         
     except Exception as e:
         logger.error(f"OAuth error: {e}")
-        return redirect('/login')
+        return redirect('/api/login')
 
 """ Logical routes for the app """
 
 def get_current_user(cached: bool = True) -> Optional[str]:
     return flask_session.get('username')
 
-@app.route("/user", methods=["GET"])
+@app.route("/api/user", methods=["GET"])
 def get_user_info() -> Tuple[Response, int]:
     username = get_current_user()
     if username:
@@ -107,12 +137,12 @@ def get_user_info() -> Tuple[Response, int]:
             "userid": None
         }), 200
 
-@app.route("/graph-data", methods=["GET"])
+@app.route("/api/graph-data", methods=["GET"])
 def graph_data() -> Response:
     return jsonify("graph data here")
 
 
-@app.route("/contest/create", methods=["POST"])
+@app.route("/api/contest/create", methods=["POST"])
 def create_contest() -> Tuple[Response, int]:
     if get_current_user(False) is None:
         return (
@@ -166,7 +196,7 @@ def create_contest() -> Tuple[Response, int]:
             return jsonify({"success": False, "message": str(e)}), 404
 
 
-@app.route("/contests", methods=["GET"])
+@app.route("/api/contests", methods=["GET"])
 def contest_list() -> Tuple[Response, int]:
     contests: List[Contest] = Contest.query.all()
     
@@ -187,7 +217,7 @@ def contest_list() -> Tuple[Response, int]:
     return jsonify(result), 200
 
 
-@app.route("/contest/<int:id>")
+@app.route("/api/contest/<int:id>")
 def contest_by_id(id: int) -> Tuple[Response, int]:
     contest: Optional[Contest] = Contest.query.get(id)
     if not contest:
@@ -246,7 +276,7 @@ def contest_by_id(id: int) -> Tuple[Response, int]:
         return jsonify(data), 200
 
 
-@app.route("/contest/<int:id>/status", methods=["PATCH"])
+@app.route("/api/contest/<int:id>/status", methods=["PATCH"])
 def update_contest_status(id: int) -> Tuple[Response, int]:
     current_user = get_current_user(False)
     if current_user is None:
@@ -276,7 +306,7 @@ def update_contest_status(id: int) -> Tuple[Response, int]:
         return jsonify({"success": False, "message": str(e)}), 500
 
 
-@app.route("/contest/<int:id>", methods=["PUT"])
+@app.route("/api/contest/<int:id>", methods=["PUT"])
 def update_contest(id: int) -> Tuple[Response, int]:
     current_user = get_current_user(False)
     if current_user is None:
