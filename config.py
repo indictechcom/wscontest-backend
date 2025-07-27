@@ -20,6 +20,9 @@ OAUTH_MWURI: str = (
     else "https://meta.wikimedia.org/w/index.php"
 )
 APP_SECRET_KEY: Optional[str] = os.getenv("APP_SECRET_KEY")
+
+# Frontend URL configuration
+FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173" if curr_env == "development" else "https://your-production-frontend.com")
 config: Dict[str, Any] = {
     "SQL_URI": f"mysql+pymysql://{DB_USERNAME}:{DB_PASSWORD}@{DB_URL}:3306/{DB_NAME}",
     "TIMEZONE": TIMEZONE,
@@ -27,5 +30,6 @@ config: Dict[str, Any] = {
     "CONSUMER_SECRET": CONSUMER_SECRET,
     "OAUTH_MWURI": OAUTH_MWURI,
     "APP_SECRET_KEY" : APP_SECRET_KEY,
-    "APP_NAME" : APP_NAME
+    "APP_NAME" : APP_NAME,
+    "FRONTEND_URL": FRONTEND_URL
 }

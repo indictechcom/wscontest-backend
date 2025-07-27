@@ -1,5 +1,6 @@
 from datetime import date, datetime
 from typing import Dict, List, Optional, Tuple, Union, Any
+import logging
 
 from mwoauth import ConsumerToken, Handshaker, RequestToken
 from flask import Flask, Response, jsonify, redirect, request
@@ -8,6 +9,13 @@ from flask_cors import CORS
 from extensions import db, migrate
 from config import config
 from models import Book, Contest, ContestAdmin, IndexPage, User
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 app: Flask = Flask(__name__)
 app.secret_key = config["APP_SECRET_KEY"]
@@ -22,7 +30,7 @@ consumer_token: ConsumerToken = ConsumerToken(
 )
 WIKI_OAUTH_URL = "https://meta.wikimedia.org/w/index.php"
 
-CORS(app, origins=["http://localhost:5173"], supports_credentials=True)
+CORS(app, origins=[config["FRONTEND_URL"]], supports_credentials=True)
 
 
 """oAuth logic"""
@@ -36,7 +44,7 @@ def login() -> Response:
     flask_session['request_token_key'] = request_token.key
     flask_session['request_token_secret'] = request_token.secret
     
-    flask_session['return_to_url'] = request.args.get('next', 'http://localhost:5173')
+    flask_session['return_to_url'] = request.args.get('next', config["FRONTEND_URL"])
     
     return redirect(redirect_url)
 
@@ -68,14 +76,14 @@ def complete_login() -> Response:
         flask_session['userid'] = userid
         flask_session['username'] = username
         
-        print(f"Logged in user: {username} (ID: {userid})")
+        logger.info(f"Logged in user: {username} (ID: {userid})")
         
         # Always redirect to frontend after successful login
-        return_url = flask_session.pop('return_to_url', 'http://localhost:5173')
+        return_url = flask_session.pop('return_to_url', config["FRONTEND_URL"])
         return redirect(return_url)
         
     except Exception as e:
-        print(f"OAuth error: {e}")
+        logger.error(f"OAuth error: {e}")
         return redirect('/login')
 
 """ Logical routes for the app """
@@ -154,7 +162,7 @@ def create_contest() -> Tuple[Response, int]:
 
             return jsonify({"success": True}), 200
         except Exception as e:
-            print(f"Error creating contest: {e}")
+            logger.error(f"Error creating contest: {e}")
             return jsonify({"success": False, "message": str(e)}), 404
 
 
