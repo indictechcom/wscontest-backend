@@ -238,6 +238,74 @@ def contest_by_id(id: int) -> Tuple[Response, int]:
         return jsonify(data), 200
 
 
+@app.route("/contest/<int:id>/status", methods=["PATCH"])
+def update_contest_status(id: int) -> Tuple[Response, int]:
+    current_user = get_current_user(False)
+    if current_user is None:
+        return jsonify({"success": False, "message": "Please login!"}), 403
+
+    contest: Optional[Contest] = Contest.query.get(id)
+    if not contest:
+        return jsonify({"success": False, "message": "Contest not found!"}), 404
+    
+    # Check if user is an admin of this contest
+    is_admin = any(admin.user_name == current_user for admin in contest.admins)
+    if not is_admin:
+        return jsonify({"success": False, "message": "Unauthorized! Only contest admins can update status."}), 403
+    
+    try:
+        data = request.json
+        new_status = data.get('status')
+        if new_status is None:
+            return jsonify({"success": False, "message": "Status field is required"}), 400
+        
+        contest.status = new_status
+        db.session.commit()
+        
+        return jsonify({"success": True, "message": f"Contest {'opened' if new_status else 'closed'} successfully"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@app.route("/contest/<int:id>", methods=["PUT"])
+def update_contest(id: int) -> Tuple[Response, int]:
+    current_user = get_current_user(False)
+    if current_user is None:
+        return jsonify({"success": False, "message": "Please login!"}), 403
+
+    contest: Optional[Contest] = Contest.query.get(id)
+    if not contest:
+        return jsonify({"success": False, "message": "Contest not found!"}), 404
+    
+    # Check if user is an admin of this contest
+    is_admin = any(admin.user_name == current_user for admin in contest.admins)
+    if not is_admin:
+        return jsonify({"success": False, "message": "Unauthorized! Only contest admins can edit contest."}), 403
+    
+    try:
+        data = request.json
+        
+        # Update contest fields
+        if 'name' in data:
+            contest.name = data['name']
+        if 'start_date' in data:
+            contest.start_date = date.fromisoformat(data['start_date'])
+        if 'end_date' in data:
+            contest.end_date = date.fromisoformat(data['end_date'])
+        if 'point_per_proofread' in data:
+            contest.point_per_proofread = int(data['point_per_proofread'])
+        if 'point_per_validate' in data:
+            contest.point_per_validate = int(data['point_per_validate'])
+        
+        db.session.commit()
+        
+        return jsonify({"success": True, "message": "Contest updated successfully"}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
 if __name__ == "__main__":
     app.run(debug=True)
 
