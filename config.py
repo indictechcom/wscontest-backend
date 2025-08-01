@@ -21,8 +21,8 @@ OAUTH_MWURI: str = (
 )
 APP_SECRET_KEY: Optional[str] = os.getenv("APP_SECRET_KEY")
 
-# Frontend URL configuration
-FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173" if curr_env == "development" else "https://your-production-frontend.com")
+# Frontend URL configuration - updated for single server deployment
+FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5000")
 config: Dict[str, Any] = {
     "SQL_URI": f"mysql+pymysql://{DB_USERNAME}:{DB_PASSWORD}@{DB_URL}:3306/{DB_NAME}",
     "TIMEZONE": TIMEZONE,
